@@ -1,5 +1,5 @@
 interface Env {
-  EDD_STORAGE: R2Bucket;
+  plataformaing: R2Bucket;
   API_KEY: string;
 }
 
@@ -18,7 +18,7 @@ export const onRequest = async (context: { request: Request, env: Env }) => {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const bucket = env.EDD_STORAGE;
+  const bucket = env.plataformaing;
   if (!bucket) {
     return new Response('R2 Bucket not bound', { status: 500 });
   }

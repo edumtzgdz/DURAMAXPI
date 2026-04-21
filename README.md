@@ -6,13 +6,13 @@ Esta aplicación utiliza **Cloudflare R2** para almacenar productos, materiales 
 En tu panel de Cloudflare:
 1. Ve a **R2 > Overview**.
 2. Haz clic en **Create bucket**.
-3. Nómbralo: `EDD_STORAGE`.
+3. Nómbralo: `plataformaing`.
 
 ### 2. Vincular el Bucket a Pages
 1. Ve a tu proyecto en **Pages > [Nombre de tu Proyecto] > Settings**.
 2. Ve a **Functions > R2 bucket bindings**.
 3. Haz clic en **Add binding**.
-4. Nombre de la variable: `EDD_STORAGE`.
+4. Nombre de la variable: `plataformaing`.
 5. Selecciona el bucket que creaste en el paso anterior.
 6. **Importante**: Repite esto tanto para "Production" como para "Preview".
 
