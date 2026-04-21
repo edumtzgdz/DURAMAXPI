@@ -3,7 +3,8 @@ interface Env {
   API_KEY: string;
 }
 
-export const onRequest = async (context: { request: Request, env: Env }) => {
+const uploadHandler = {
+  async onRequest(context: { request: Request, env: Env }) {
   const { request, env } = context;
   const url = new URL(request.url);
   const bucket = env.plataformaing;
@@ -37,11 +38,13 @@ export const onRequest = async (context: { request: Request, env: Env }) => {
     }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File;
-
-    if (!file) {
+    const fileEntry = formData.get('file');
+    
+    if (!fileEntry || typeof fileEntry === 'string') {
       return new Response('No file uploaded', { status: 400 });
     }
+
+    const file = fileEntry as unknown as File;
 
     const extension = file.name.split('.').pop();
     const filename = `${crypto.randomUUID()}.${extension}`;
@@ -60,4 +63,7 @@ export const onRequest = async (context: { request: Request, env: Env }) => {
   }
 
   return new Response('Method not allowed', { status: 405 });
+}
 };
+
+export default uploadHandler;

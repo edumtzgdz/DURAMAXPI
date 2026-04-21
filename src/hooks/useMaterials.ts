@@ -30,11 +30,11 @@ export function useMaterials() {
           apiFetch(`/api/storage?key=${CATEGORIES_KEY}`)
         ]);
         
-        const mData = await mRes.json();
-        const cData = await cRes.json();
+        const mData = await mRes.json() as Material[];
+        const cData = await cRes.json() as MaterialCategory[];
         
-        setMaterials(mData || []);
-        setCategories(cData || []);
+        setMaterials(Array.isArray(mData) ? mData : []);
+        setCategories(Array.isArray(cData) ? cData : []);
       } catch (e: any) {
         console.error('Failed to load materials/categories from R2:', e);
         setError(e.message);

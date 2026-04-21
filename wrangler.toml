@@ -1,5 +1,5 @@
-# Cloudflare Configuration for DURAMAXPI
 name = "duramaxpi"
+main = "src/index.ts"
 compatibility_date = "2026-04-21"
 
 [assets]

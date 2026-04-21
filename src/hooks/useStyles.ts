@@ -14,7 +14,7 @@ export function useStyles() {
       try {
         setLoading(true);
         const response = await apiFetch(`/api/storage?key=${STYLES_KEY}`);
-        const data = await response.json();
+        const data = await response.json() as StyleNomenclature;
         setNomenclature(data?.positions ? data : { positions: [] });
       } catch (e: any) {
         console.error('Failed to load style nomenclature from R2:', e);

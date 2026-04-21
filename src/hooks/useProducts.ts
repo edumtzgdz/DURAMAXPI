@@ -15,8 +15,8 @@ export function useProducts() {
       try {
         setLoading(true);
         const response = await apiFetch(`/api/storage?key=${STORAGE_KEY}`);
-        const data = await response.json();
-        setProducts(data || []);
+        const data = await response.json() as Product[];
+        setProducts(Array.isArray(data) ? data : []);
       } catch (e: any) {
         console.error('Failed to load products from R2:', e);
         setError(e.message);

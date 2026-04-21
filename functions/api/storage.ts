@@ -3,7 +3,8 @@ interface Env {
   API_KEY: string;
 }
 
-export const onRequest = async (context: { request: Request, env: Env }) => {
+const storageHandler = {
+  async onRequest(context: { request: Request, env: Env }) {
   const { request, env } = context;
   const url = new URL(request.url);
   const key = url.searchParams.get('key'); // e.g. 'products', 'materials'
@@ -49,4 +50,7 @@ export const onRequest = async (context: { request: Request, env: Env }) => {
   }
 
   return new Response('Method not allowed', { status: 405 });
+}
 };
+
+export default storageHandler;
