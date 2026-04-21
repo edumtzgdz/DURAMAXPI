@@ -1,4 +1,9 @@
-export const onRequest = async (context) => {
+interface Env {
+  EDD_STORAGE: R2Bucket;
+  API_KEY: string;
+}
+
+export const onRequest = async (context: { request: Request, env: Env }) => {
   const { request, env } = context;
   const url = new URL(request.url);
   const key = url.searchParams.get('key'); // e.g. 'products', 'materials'
