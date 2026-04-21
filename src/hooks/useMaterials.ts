@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import type { Material, MaterialCategory, UnitOfMeasure } from '../types';
+import type { Material, MaterialCategory } from '../types';
+import { apiFetch } from '../utils/apiClient';
 
-const MATERIALS_STORAGE_KEY = 'edd_materials';
-const CATEGORIES_STORAGE_KEY = 'edd_material_categories';
+const MATERIALS_KEY = 'materials';
+const CATEGORIES_KEY = 'material_categories';
 
 export const DEFAULT_CATEGORIES = [
   { id: 'cat-piel', name: 'PIEL' },
@@ -17,52 +18,61 @@ export const DEFAULT_CATEGORIES = [
 export function useMaterials() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedMaterials = localStorage.getItem(MATERIALS_STORAGE_KEY);
-    if (storedMaterials) {
+    async function loadData() {
       try {
-        setMaterials(JSON.parse(storedMaterials));
-      } catch (e) {
-        console.error('Failed to parse materials:', e);
+        setLoading(true);
+        const [mRes, cRes] = await Promise.all([
+          apiFetch(`/api/storage?key=${MATERIALS_KEY}`),
+          apiFetch(`/api/storage?key=${CATEGORIES_KEY}`)
+        ]);
+        
+        const mData = await mRes.json();
+        const cData = await cRes.json();
+        
+        setMaterials(mData || []);
+        setCategories(cData || []);
+      } catch (e: any) {
+        console.error('Failed to load materials/categories from R2:', e);
+        setError(e.message);
+      } finally {
+        setLoading(false);
       }
     }
-
-    const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-    if (storedCategories) {
-      try {
-        setCategories(JSON.parse(storedCategories));
-      } catch (e) {
-        console.error('Failed to parse categories:', e);
-      }
-    }
+    loadData();
   }, []);
 
-  const saveMaterials = (updated: Material[]) => {
-    setMaterials(updated);
-    localStorage.setItem(MATERIALS_STORAGE_KEY, JSON.stringify(updated));
+  const saveToR2 = async (key: string, data: any) => {
+    try {
+      await apiFetch(`/api/storage?key=${key}`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch (e: any) {
+      console.error(`Failed to save ${key} to R2:`, e);
+      alert(`Error al guardar ${key}: ` + e.message);
+    }
   };
 
-  const saveCategories = (updated: MaterialCategory[]) => {
-    setCategories(updated);
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  const addMaterial = (data: Omit<Material, 'id' | 'lastUpdated' | 'priceHistory'>) => {
+  const addMaterial = async (data: Omit<Material, 'id' | 'lastUpdated' | 'priceHistory'>) => {
     const newMaterial: Material = {
       ...data,
       id: crypto.randomUUID(),
       lastUpdated: Date.now(),
       priceHistory: [{ price: data.cost, date: Date.now() }]
     };
-    saveMaterials([newMaterial, ...materials]);
+    const updated = [newMaterial, ...materials];
+    setMaterials(updated);
+    await saveToR2(MATERIALS_KEY, updated);
   };
 
-  const updateMaterial = (id: string, updates: Partial<Material>) => {
+  const updateMaterial = async (id: string, updates: Partial<Material>) => {
     const updated = materials.map(m => {
       if (m.id === id) {
         const next = { ...m, ...updates };
-        // If cost changed, add to history
         if (updates.cost !== undefined && updates.cost !== m.cost) {
           next.priceHistory = [...m.priceHistory, { price: updates.cost, date: Date.now() }];
           next.lastUpdated = Date.now();
@@ -71,26 +81,35 @@ export function useMaterials() {
       }
       return m;
     });
-    saveMaterials(updated);
+    setMaterials(updated);
+    await saveToR2(MATERIALS_KEY, updated);
   };
 
-  const deleteMaterial = (id: string) => {
-    saveMaterials(materials.filter(m => m.id !== id));
+  const deleteMaterial = async (id: string) => {
+    const updated = materials.filter(m => m.id !== id);
+    setMaterials(updated);
+    await saveToR2(MATERIALS_KEY, updated);
   };
 
-  const addCategory = (name: string) => {
+  const addCategory = async (name: string) => {
     const newCat = { id: `cat-${Date.now()}`, name };
-    saveCategories([...categories, newCat]);
+    const updated = [...categories, newCat];
+    setCategories(updated);
+    await saveToR2(CATEGORIES_KEY, updated);
   };
 
-  const deleteCategory = (id: string) => {
-    if (DEFAULT_CATEGORIES.some(c => c.id === id)) return; // Prevent deleting defaults
-    saveCategories(categories.filter(c => c.id !== id));
+  const deleteCategory = async (id: string) => {
+    if (DEFAULT_CATEGORIES.some(c => c.id === id)) return;
+    const updated = categories.filter(c => c.id !== id);
+    setCategories(updated);
+    await saveToR2(CATEGORIES_KEY, updated);
   };
 
   return {
     materials,
     categories,
+    loading,
+    error,
     addMaterial,
     updateMaterial,
     deleteMaterial,

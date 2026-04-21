@@ -1,73 +1,36 @@
-# React + TypeScript + Vite
+## ☁️ Configuración de Almacenamiento (Cloudflare R2)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Esta aplicación utiliza **Cloudflare R2** para almacenar productos, materiales y archivos multimedia. Para que funcione correctamente en producción, debes seguir estos pasos:
 
-Currently, two official plugins are available:
+### 1. Crear el Bucket R2
+En tu panel de Cloudflare:
+1. Ve a **R2 > Overview**.
+2. Haz clic en **Create bucket**.
+3. Nómbralo: `EDD_STORAGE`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### 2. Vincular el Bucket a Pages
+1. Ve a tu proyecto en **Pages > [Nombre de tu Proyecto] > Settings**.
+2. Ve a **Functions > R2 bucket bindings**.
+3. Haz clic en **Add binding**.
+4. Nombre de la variable: `EDD_STORAGE`.
+5. Selecciona el bucket que creaste en el paso anterior.
+6. **Importante**: Repite esto tanto para "Production" como para "Preview".
 
-## React Compiler
+### 3. Configurar Variables de Entorno (API Key)
+Por seguridad, la comunicación con R2 requiere una clave.
+1. En **Settings > Environment variables**, añade una variable:
+   - **Variable name**: `API_KEY`
+   - **Value**: (Cualquier clave secreta que elijas)
+2. En tu archivo `.env` local o en las variables de entorno de Vite de Cloudflare, añade:
+   - `VITE_API_KEY`: (La misma clave secreta anterior)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 4. Desarrollo Local
+Para probar localmente con Wrangler:
+1. Crea un archivo `.dev.vars` en la raíz con:
+   ```env
+   API_KEY=tu_clave_secreta
+   ```
+2. Ejecuta `npx wrangler pages dev .` para simular las funciones de Cloudflare localmente.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+© 2024 DURAMAX - Footwear Engineering Tool

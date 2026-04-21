@@ -1,56 +1,72 @@
 import { useState, useEffect } from 'react';
 import type { Product } from '../types';
+import { apiFetch } from '../utils/apiClient';
 
-const STORAGE_KEY = 'edd_products';
+const STORAGE_KEY = 'products';
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load from local storage on mount
+  // Load from R2 on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    async function loadProducts() {
       try {
-        setProducts(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse products from local storage:', e);
+        setLoading(true);
+        const response = await apiFetch(`/api/storage?key=${STORAGE_KEY}`);
+        const data = await response.json();
+        setProducts(data || []);
+      } catch (e: any) {
+        console.error('Failed to load products from R2:', e);
+        setError(e.message);
+      } finally {
+        setLoading(false);
       }
     }
+    loadProducts();
   }, []);
 
-  // Save to local storage whenever products update
-  const addProduct = (product: Omit<Product, 'id' | 'createdAt'>) => {
+  const saveToR2 = async (updated: Product[]) => {
+    try {
+      await apiFetch(`/api/storage?key=${STORAGE_KEY}`, {
+        method: 'POST',
+        body: JSON.stringify(updated),
+      });
+    } catch (e: any) {
+      console.error('Failed to save to R2:', e);
+      alert('Error al guardar en la nube: ' + e.message);
+    }
+  };
+
+  const addProduct = async (product: Omit<Product, 'id' | 'createdAt'>) => {
     const newProduct: Product = {
       ...product,
       id: crypto.randomUUID(),
       createdAt: Date.now(),
     };
     
-    setProducts((prev) => {
-      const updated = [newProduct, ...prev];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
+    const updated = [newProduct, ...products];
+    setProducts(updated);
+    await saveToR2(updated);
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts((prev) => {
-      const updated = prev.filter(p => p.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const deleteProduct = async (id: string) => {
+    const updated = products.filter(p => p.id !== id);
+    setProducts(updated);
+    await saveToR2(updated);
   };
 
-  const updateProduct = (id: string, updates: Partial<Product>) => {
-    setProducts((prev) => {
-      const updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
+    const updated = products.map(p => p.id === id ? { ...p, ...updates } : p);
+    setProducts(updated);
+    await saveToR2(updated);
   };
 
   return {
     products,
+    loading,
+    error,
     addProduct,
     updateProduct,
     deleteProduct

@@ -1,24 +1,32 @@
 import { useState, useEffect } from 'react';
-import type { StyleNomenclature, StylePositionDefinition } from '../types';
+import type { StyleNomenclature } from '../types';
+import { apiFetch } from '../utils/apiClient';
 
-const STYLES_STORAGE_KEY = 'edd_style_nomenclature';
+const STYLES_KEY = 'style_nomenclature';
 
 export function useStyles() {
   const [ nomenclature, setNomenclature ] = useState<StyleNomenclature>({ positions: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STYLES_STORAGE_KEY);
-    if (stored) {
+    async function loadData() {
       try {
-        setNomenclature(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse style nomenclature:', e);
+        setLoading(true);
+        const response = await apiFetch(`/api/storage?key=${STYLES_KEY}`);
+        const data = await response.json();
+        setNomenclature(data?.positions ? data : { positions: [] });
+      } catch (e: any) {
+        console.error('Failed to load style nomenclature from R2:', e);
+        setError(e.message);
+      } finally {
+        setLoading(false);
       }
     }
+    loadData();
   }, []);
 
-  const saveNomenclature = (updated: StyleNomenclature) => {
-    // Sort positions logically for predictable description generation
+  const saveNomenclature = async (updated: StyleNomenclature) => {
     const sortedPositions = [...updated.positions].sort((a, b) => {
       if (a.segment !== b.segment) return a.segment - b.segment;
       return a.position - b.position;
@@ -26,17 +34,26 @@ export function useStyles() {
     
     const final = { positions: sortedPositions };
     setNomenclature(final);
-    localStorage.setItem(STYLES_STORAGE_KEY, JSON.stringify(final));
+
+    try {
+      await apiFetch(`/api/storage?key=${STYLES_KEY}`, {
+        method: 'POST',
+        body: JSON.stringify(final),
+      });
+    } catch (e: any) {
+      console.error('Failed to save styles to R2:', e);
+      alert('Error al guardar nomenclatura: ' + e.message);
+    }
   };
 
-  const updatePositionMeaning = (segment: 1 | 2 | 3, position: number, meaning: string, length: number = 1) => {
+  const updatePositionMeaning = async (segment: 1 | 2 | 3, position: number, meaning: string, length: number = 1) => {
     const existing = nomenclature.positions.find(p => p.segment === segment && p.position === position);
     const otherPositions = nomenclature.positions.filter(p => !(p.segment === segment && p.position === position));
     
     if (meaning.trim() === '' && (!existing || !existing.mappings)) {
-      saveNomenclature({ positions: otherPositions });
+      await saveNomenclature({ positions: otherPositions });
     } else {
-      saveNomenclature({ 
+      await saveNomenclature({ 
         positions: [...otherPositions, { 
           segment, 
           position, 
@@ -48,11 +65,11 @@ export function useStyles() {
     }
   };
 
-  const updatePositionMappings = (segment: 1 | 2 | 3, position: number, mappings: Record<string, string>, length: number = 1) => {
+  const updatePositionMappings = async (segment: 1 | 2 | 3, position: number, mappings: Record<string, string>, length: number = 1) => {
     const existing = nomenclature.positions.find(p => p.segment === segment && p.position === position);
     const otherPositions = nomenclature.positions.filter(p => !(p.segment === segment && p.position === position));
     
-    saveNomenclature({ 
+    await saveNomenclature({ 
       positions: [...otherPositions, { 
         segment, 
         position, 
@@ -77,6 +94,8 @@ export function useStyles() {
 
   return {
     nomenclature,
+    loading,
+    error,
     saveNomenclature,
     updatePositionMeaning,
     updatePositionMappings,

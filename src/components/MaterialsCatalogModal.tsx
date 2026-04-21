@@ -27,6 +27,10 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -37,6 +41,7 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
     thicknessMax: 0,
     color: '#000000',
     supplier: '',
+    image: '',
   });
 
   const filteredMaterials = materials.filter(m => {
@@ -46,15 +51,55 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
     return matchesSearch && matchesCategory;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingId) {
-      updateMaterial(editingId, formData);
-      setEditingId(null);
-    } else {
-      addMaterial(formData);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('La imagen es demasiado grande. Máximo 5MB.');
+        return;
+      }
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+        setError(null);
+      };
+      reader.readAsDataURL(file);
     }
-    setShowAddForm(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUploading(true);
+    
+    try {
+      let finalImageUrl = formData.image;
+
+      if (selectedFile) {
+        const { uploadFile } = await import('../utils/apiClient');
+        const uploadResult = await uploadFile(selectedFile);
+        finalImageUrl = uploadResult.url;
+      }
+
+      const materialData = { ...formData, image: finalImageUrl };
+
+      if (editingId) {
+        await updateMaterial(editingId, materialData);
+        setEditingId(null);
+      } else {
+        await addMaterial(materialData);
+      }
+      
+      setShowAddForm(false);
+      resetForm();
+    } catch (e: any) {
+      setError('Error al guardar: ' + e.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
       name: '',
       categoryId: '',
@@ -64,7 +109,11 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
       thicknessMax: 0,
       color: '#000000',
       supplier: '',
+      image: '',
     });
+    setImagePreview(null);
+    setSelectedFile(null);
+    setError(null);
   };
 
   const handleEdit = (material: Material) => {
@@ -77,7 +126,9 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
       thicknessMax: material.thicknessMax || 0,
       color: material.color || '#000000',
       supplier: material.supplier || '',
+      image: material.image || '',
     });
+    setImagePreview(material.image || null);
     setEditingId(material.id);
     setShowAddForm(true);
   };
@@ -153,6 +204,29 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
                     
                     <div className="form-grid">
                       <div className="form-group full">
+                        <label>Imagen del Material</label>
+                        <div 
+                          className="image-upload-area material-mini-upload"
+                          onClick={() => document.getElementById('mat-image-input')?.click()}
+                        >
+                          {imagePreview ? (
+                            <img src={imagePreview} alt="Vista previa" className="image-preview" />
+                          ) : (
+                            <div className="upload-placeholder">
+                              <Plus size={24} />
+                              <span>Agregar Foto</span>
+                            </div>
+                          )}
+                          <input
+                            id="mat-image-input"
+                            type="file"
+                            onChange={handleImageChange}
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group full">
                         <label>Nombre del Material</label>
                         <input 
                           required
@@ -204,8 +278,9 @@ export function MaterialsCatalogModal({ isOpen, onClose, initialData, onSelect }
                         />
                       </div>
                     </div>
-                    <button type="submit" className="cta-button submit-btn">
-                      {editingId ? 'Guardar Cambios' : 'Crear Material'}
+                    {error && <p className="error-message">{error}</p>}
+                    <button type="submit" className="cta-button submit-btn" disabled={isUploading}>
+                      {isUploading ? <span className="spinner"></span> : (editingId ? 'Guardar Cambios' : 'Crear Material')}
                     </button>
                   </form>
                 </motion.div>

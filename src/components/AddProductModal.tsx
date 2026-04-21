@@ -15,7 +15,9 @@ interface AddProductModalProps {
 export function AddProductModal({ isOpen, onClose, onSave, initialData }: AddProductModalProps) {
   const [name, setName] = useState(initialData?.name || '');
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.image || null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { nomenclature } = useStyles();
 
@@ -30,20 +32,23 @@ export function AddProductModal({ isOpen, onClose, onSave, initialData }: AddPro
     if (initialData) {
       setName(initialData.name);
       setImagePreview(initialData.image);
+      setSelectedFile(null);
     } else {
       setName('');
       setImagePreview(null);
+      setSelectedFile(null);
     }
   }, [initialData, isOpen]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { 
-        setError('La imagen es demasiado grande. Máximo 2MB.');
+      if (file.size > 5 * 1024 * 1024) { // Increase to 5MB for R2
+        setError('La imagen es demasiado grande. Máximo 5MB.');
         return;
       }
       
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -53,7 +58,7 @@ export function AddProductModal({ isOpen, onClose, onSave, initialData }: AddPro
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Por favor, ingresa el nombre del estilo.');
@@ -65,18 +70,34 @@ export function AddProductModal({ isOpen, onClose, onSave, initialData }: AddPro
       return;
     }
 
-    if (!imagePreview) {
+    if (!imagePreview && !selectedFile) {
       setError('Por favor, selecciona una imagen.');
       return;
     }
 
-    onSave({ 
-      id: initialData?.id, 
-      name: name.toUpperCase(), 
-      image: imagePreview 
-    });
-    
-    onClose();
+    setIsUploading(true);
+    try {
+      let finalImageUrl = imagePreview;
+
+      // If we have a new file, upload it to R2
+      if (selectedFile) {
+        const { uploadFile } = await import('../utils/apiClient');
+        const uploadResult = await uploadFile(selectedFile);
+        finalImageUrl = uploadResult.url;
+      }
+
+      onSave({ 
+        id: initialData?.id, 
+        name: name.toUpperCase(), 
+        image: finalImageUrl || '' 
+      });
+      
+      onClose();
+    } catch (e: any) {
+      setError('Error al subir imagen: ' + e.message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -158,9 +179,15 @@ export function AddProductModal({ isOpen, onClose, onSave, initialData }: AddPro
               <button type="button" className="cancel-button" onClick={onClose}>
                 Cancelar
               </button>
-              <button type="submit" className="submit-button cta-button">
-                <Upload size={18} />
-                {initialData ? 'Guardar Cambios' : 'Crear Producto'}
+              <button type="submit" className="submit-button cta-button" disabled={isUploading}>
+                {isUploading ? (
+                  <span className="spinner"></span>
+                ) : (
+                  <>
+                    <Upload size={18} />
+                    {initialData ? 'Guardar Cambios' : 'Crear Producto'}
+                  </>
+                )}
               </button>
             </div>
           </form>
