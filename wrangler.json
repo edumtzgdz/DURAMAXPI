@@ -1,0 +1,16 @@
+{
+  "name": "duramaxpi",
+  "compatibility_date": "2026-04-21",
+  "assets": {
+    "directory": "./dist"
+  },
+  "r2_buckets": [
+    {
+      "binding": "plataformaing",
+      "bucket_name": "plataformaing"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
